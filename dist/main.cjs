@@ -1,49 +1,53 @@
-"use strict";
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __moduleCache = /* @__PURE__ */ new WeakMap;
+var __toCommonJS = (from) => {
+  var entry = __moduleCache.get(from), desc;
+  if (entry)
+    return entry;
+  entry = __defProp({}, "__esModule", { value: true });
+  if (from && typeof from === "object" || typeof from === "function")
+    __getOwnPropNames(from).map((key) => !__hasOwnProp.call(entry, key) && __defProp(entry, key, {
+      get: () => from[key],
+      enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
+    }));
+  __moduleCache.set(from, entry);
+  return entry;
+};
 var __export = (target, all) => {
   for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
+    __defProp(target, name, {
+      get: all[name],
+      enumerable: true,
+      configurable: true,
+      set: (newValue) => all[name] = () => newValue
+    });
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // dist/esm/main.js
-var main_exports = {};
-__export(main_exports, {
-  HyperAPIIpcDriver: () => HyperAPIIpcDriver,
-  sendIpcRequest: () => sendIpcRequest
+var exports_main = {};
+__export(exports_main, {
+  sendIpcRequest: () => sendIpcRequest,
+  HyperAPIIpcDriver: () => HyperAPIIpcDriver
 });
-module.exports = __toCommonJS(main_exports);
+module.exports = __toCommonJS(exports_main);
 var import_core = require("@hyperapi/core");
 var import_node_crypto = require("node:crypto");
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function createId() {
-  return (0, import_node_crypto.randomBytes)(16).toString("base64").replaceAll("=", "");
+  return import_node_crypto.randomBytes(16).toString("base64").replaceAll("=", "");
 }
-var HyperAPIIpcDriver = class {
+
+class HyperAPIIpcDriver {
   process;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  hyperapi_handler = void 0;
+  hyperapi_handler = undefined;
   constructor(process = globalThis.process) {
     this.process = process;
   }
-  /**
-   * Starts the server.
-   * @param hyperapi_handler - The handler to use.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   start(hyperapi_handler) {
     this.hyperapi_handler = hyperapi_handler;
     this.process.on("message", async (message) => {
@@ -51,7 +55,7 @@ var HyperAPIIpcDriver = class {
         return;
       }
       const request = message["@hyperapi-request"];
-      if (request === void 0) {
+      if (request === undefined) {
         return;
       }
       if (!Array.isArray(request)) {
@@ -63,14 +67,14 @@ var HyperAPIIpcDriver = class {
       if (typeof request[1] !== "string") {
         throw new TypeError("Invalid request[1].");
       }
-      if (!(request[2] === void 0 || isRecord(request[2]))) {
+      if (!(request[2] === undefined || isRecord(request[2]))) {
         throw new TypeError("Invalid request[2].");
       }
       const [request_id, path, args] = request;
       const response = [
         request_id,
         true,
-        void 0
+        undefined
       ];
       try {
         response[2] = await this.processRequest(path, args);
@@ -89,18 +93,9 @@ var HyperAPIIpcDriver = class {
       });
     });
   }
-  /**
-   * Stops the server.
-   */
   stop() {
     this.process.removeAllListeners("message");
   }
-  /**
-   * Handles the request.
-   * @param path - API method path.
-   * @param args - API method arguments.
-   * @returns -
-   */
   async processRequest(path, args) {
     if (!this.hyperapi_handler) {
       throw new Error("No handler available.");
@@ -113,9 +108,12 @@ var HyperAPIIpcDriver = class {
     if (hyperapi_response instanceof import_core.HyperAPIError) {
       throw hyperapi_response;
     }
+    if (hyperapi_response instanceof Response) {
+      throw new TypeError("Response is not supported in this driver");
+    }
     return hyperapi_response;
   }
-};
+}
 function sendIpcRequest(process, path, args) {
   const id = createId();
   const promise = new Promise((resolve) => {
@@ -124,7 +122,7 @@ function sendIpcRequest(process, path, args) {
         return;
       }
       const response = message["@hyperapi-response"];
-      if (response === void 0) {
+      if (response === undefined) {
         return;
       }
       if (!Array.isArray(response) || response.length !== 3) {
@@ -154,8 +152,3 @@ function sendIpcRequest(process, path, args) {
   });
   return promise;
 }
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  HyperAPIIpcDriver,
-  sendIpcRequest
-});

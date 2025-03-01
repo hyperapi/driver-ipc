@@ -154,6 +154,10 @@ export class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
 			throw hyperapi_response;
 		}
 
+		if (hyperapi_response instanceof Response) {
+			throw new TypeError('Response is not supported in this driver');
+		}
+
 		return hyperapi_response;
 	}
 }
