@@ -5,9 +5,7 @@ import {
 	type HyperAPIDriverHandler,
 	type HyperAPIRequest,
 } from '@hyperapi/core';
-import type {
-	ChildProcess,
-} from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 
 /**
@@ -46,7 +44,7 @@ export class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
 	 * @param hyperapi_handler - The handler to use.
 	 */
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	start(hyperapi_handler: HyperAPIDriverHandler<HyperAPIRequest<any>>) {
+	start(hyperapi_handler: HyperAPIDriverHandler<HyperAPIRequest<any>>): void {
 		this.hyperapi_handler = hyperapi_handler;
 		this.process.on(
 			'message',
@@ -126,8 +124,10 @@ export class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
 	/**
 	 * Stops the server.
 	 */
-	stop() {
-		this.process.removeAllListeners('message');
+	// eslint-disable-next-line class-methods-use-this
+	stop(): void {
+		// TODO: Implement removing listeners we added.
+		// this.process.removeAllListeners('message');
 	}
 
 	/**

@@ -6,11 +6,11 @@
 		"access": "public"
 	},
 	"type": "module",
-	"main": "dist/esm/main.js",
-	"types": "dist/esm/main.d.ts",
+	"main": "dist/main.js",
+	"types": "dist/main.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/main.js",
+			"import": "./dist/main.js",
 			"require": "./dist/main.cjs"
 		}
 	},
@@ -18,24 +18,24 @@
 		"node": ">=21"
 	},
 	"peerDependencies": {
-		"@hyperapi/core": "git+https://github.com/hyperapi/core#d8b753edc246919be9b2f026a78013335c71d310"
+		"@hyperapi/core": "git+https://github.com/hyperapi/core#db67a3835ca465679c93a20c759759ba23535723"
 	},
 	"devDependencies": {
 		"@kirick/eslint-config": "latest",
 		"@types/bun": "^1.1.6",
 		"eslint": "9.10.0",
-		"typescript": "5.5.4",
-		"vitest": "2.1.1"
+		"publint": "0.3.12",
+		"tsdown": "0.12.2",
+		"typescript": "5.8.3",
+		"unplugin-unused": "0.5.0",
+		"vitest": "3.1.4"
 	},
 	"scripts": {
-		"build": "bun run build:ts && bun run build:cjs",
-		"build:cjs": "bun build dist/esm/main.js --platform=node --format=cjs --packages=external --outfile=dist/main.cjs",
-		"# build:cjs": "bunx esbuild --bundle --platform=node --format=cjs --packages=external --outfile=dist/main.cjs dist/esm/main.js",
-		"build:ts": "rm -r dist/esm dist/types ; tsc",
-		"lint": "eslint . && tsc --skipLibCheck --noemit",
-		"publish:npm": "bun run build && bun run lint && bun run test && npm publish",
+		"build": "tsdown src/main.ts --publint --unused --dts --format esm --format cjs && rm dist/main.d.cts",
+		"check": "bun run lint && bun run build && bun run test",
+		"lint": "eslint . && tsc",
 		"test": "npm run test:vitest && bun test --coverage",
-		"test:vitest": "tsc -p tsconfig.vitest.json && vitest run --dir dist/vitest --no-file-parallelism ; rm -r dist/vitest"
+		"test:vitest": "rm -r dist/vitest ; tsc -p tsconfig.test.json && vitest run --no-file-parallelism ; rm -r dist/vitest"
 	},
 	"repository": {
 		"type": "git",
