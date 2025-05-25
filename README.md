@@ -153,12 +153,12 @@ export default function(request: HyperAPIRequest): HyperAPIResponse {
   // Check some condition
   if (isLocked()) {
     throw new HyperAPIBusyError();
-    // Client will receive [false, {"code":10,"description":"Endpoint is busy"}]
+    // Client will receive [ false, { "code": 10, "description": "Endpoint is busy" }]
   }
 
   // Normal processing
   return { message: "Success" };
-  // Client will receive [true, {"message":"Success"}]
+  // Client will receive [ true, { "message": "Success" }]
 }
 ```
 
