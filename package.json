@@ -18,7 +18,7 @@
 		"node": ">=21"
 	},
 	"peerDependencies": {
-		"@hyperapi/core": "git+https://github.com/hyperapi/core#db67a3835ca465679c93a20c759759ba23535723"
+		"@hyperapi/core": "git+https://github.com/hyperapi/core#1cd49ca6cd7e875de1a848e9f52be4141f8d55f7"
 	},
 	"devDependencies": {
 		"@kirick/eslint-config": "latest",
