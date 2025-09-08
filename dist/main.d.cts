@@ -1,5 +1,5 @@
-import { HyperAPIDriver, HyperAPIDriverHandler, HyperAPIRequest } from "@hyperapi/core";
 import { ChildProcess } from "node:child_process";
+import { HyperAPIDriver, HyperAPIDriverHandler, HyperAPIRequest } from "@hyperapi/core";
 
 //#region src/main.d.ts
 declare class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {

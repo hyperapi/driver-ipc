@@ -21,8 +21,10 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 }) : target, mod));
 
 //#endregion
-const __hyperapi_core = __toESM(require("@hyperapi/core"));
-const node_crypto = __toESM(require("node:crypto"));
+let node_crypto = require("node:crypto");
+node_crypto = __toESM(node_crypto);
+let __hyperapi_core = require("@hyperapi/core");
+__hyperapi_core = __toESM(__hyperapi_core);
 
 //#region src/main.ts
 /**

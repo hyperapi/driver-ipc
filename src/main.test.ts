@@ -1,28 +1,15 @@
-import { HyperAPI } from '@hyperapi/core';
 import { fork } from 'node:child_process';
-import {
-	expect,
-	test,
-} from 'vitest';
-import {
-	HyperAPIIpcDriver,
-	sendIpcRequest,
-} from './main.js';
+import { HyperAPI } from '@hyperapi/core';
+import { expect, test } from 'vitest';
+import { HyperAPIIpcDriver, sendIpcRequest } from './main.js';
 
 const IS_BUN = typeof Bun !== 'undefined';
 
 const child_process = fork(
-	new URL(
-		`../test/child/main.${IS_BUN ? 'ts' : 'js'}`,
-		import.meta.url,
-	).pathname,
+	new URL(`../test/child/main.${IS_BUN ? 'ts' : 'js'}`, import.meta.url)
+		.pathname,
 	{
-		stdio: [
-			'ignore',
-			'pipe',
-			'pipe',
-			'ipc',
-		],
+		stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
 	},
 );
 
@@ -33,13 +20,9 @@ const _hyperApi = new HyperAPI({
 });
 
 test('child reply', async () => {
-	const result = await sendIpcRequest(
-		child_process,
-		'echo',
-		{
-			name: 'Kirick',
-		},
-	);
+	const result = await sendIpcRequest(child_process, 'echo', {
+		name: 'Kirick',
+	});
 
 	expect(result).toStrictEqual([
 		true,
@@ -51,13 +34,9 @@ test('child reply', async () => {
 });
 
 test('child asks parent', async () => {
-	const result = await sendIpcRequest(
-		child_process,
-		'proxy',
-		{
-			name: 'Kirick',
-		},
-	);
+	const result = await sendIpcRequest(child_process, 'proxy', {
+		name: 'Kirick',
+	});
 
 	expect(result).toStrictEqual([
 		true,

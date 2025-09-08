@@ -1,5 +1,5 @@
-import { HyperAPIError, HyperAPIInternalError } from "@hyperapi/core";
 import { randomBytes } from "node:crypto";
+import { HyperAPIError, HyperAPIInternalError } from "@hyperapi/core";
 
 //#region src/main.ts
 /**
