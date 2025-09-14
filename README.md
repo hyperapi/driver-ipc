@@ -12,7 +12,6 @@ A HyperAPI driver that enables inter-process communication (IPC) between Node.js
 - 🧩 **File-based Routing** - Automatic endpoint generation from your file structure
 - 🚀 **Bi-directional** - Both parent and child processes can expose and consume APIs
 - 🛡️ **Error Handling** - Structured error responses compatible with HyperAPI's error system
-- ⚡ **Native Performance** - Built on Node.js native IPC, no external dependencies
 
 ## Installation
 
@@ -41,11 +40,11 @@ import { HyperAPIIpcDriver } from '@hyperapi/driver-ipc';
 const driver = new HyperAPIIpcDriver(process);
 
 // Initialize HyperAPI with the driver
-const hyperApiCore = new HyperAPI({
+export const hyperApi = new HyperAPI(
   driver,
   // Optional: custom path to API methods
-  // root: path.join(import.meta.dir, 'my-api')
-});
+  // path.join(import.meta.dir, 'my-api')
+);
 
 console.log('Child service is ready to handle IPC requests');
 ```
@@ -61,12 +60,9 @@ import { HyperAPIIpcDriver, sendIpcRequest } from '@hyperapi/driver-ipc';
 // Fork a child process
 const childProcess = fork('./child-service.js');
 
-// Optional: Set up HyperAPI in parent too
+// Optional: Set up HyperAPI in parent too to allow children send requests to the parent process
 const driver = new HyperAPIIpcDriver(childProcess);
-const hyperApiCore = new HyperAPI({
-  driver,
-  root: './parent-api'
-});
+export const hyperApi = new HyperAPI(driver, './parent-api');
 
 // Send requests to child process
 const [success, result] = await sendIpcRequest(
@@ -83,37 +79,47 @@ if (success) {
 ```
 
 > [!NOTE]
-> Unlike HTTP drivers, IPC does not have verbs like `GET`, `POST`, etc. The driver uses the special `UNKNOWN` pseudo-method reserved for non-HTTP API servers.
+> Unlike HTTP drivers, IPC does not have verbs like `GET`, `POST`, etc. The driver uses the special `UNKNOWN` pseudo-method reserved for non-HTTP API servers by HyperAPI core.
 >
-> This means you **cannot** specify HTTP methods in your file names like `[get]`, `[post]`, etc. Just omit them entirely when creating your API modules.
+> This means that you **can not** specify HTTP methods in your file names like `user.get.ts` — it will not be accessible for IPC requests.
 
 ### Creating API Endpoints
 
 Create your API handlers in the default `hyper-api` directory:
 
 **hyper-api/users/[id].ts**
+
 ```typescript
-import type { HyperAPIRequest, HyperAPIResponse } from '@hyperapi/core';
+import { HyperAPIInvalidParametersError } from '@hyper-api/core';
 import * as v from 'valibot';
+import { hyperApi } from '../main.js';
 
-export default function(
-  request: HyperAPIRequest<{ id: string }>,
-): HyperAPIResponse {
-  const { id } = request.args;
-
-  // Mocking user lookup
-  return {
-    id,
-    name: 'John Doe',
-    email: 'john@example.com',
+// Define your validation library
+export function valibot<S extends v.BaseSchema<any, any, any>>(schema: S) {
+  return (request: HyperAPIRequest) => {
+    const result = v.safeParse(schema, request.args);
+    if (result.success) {
+      return { args: result.data };
+    }
+    throw new HyperAPIInvalidParametersError();
   };
 }
 
-export const argsValidator = v.parser(
-  v.strictObject({
-    id: v.string('User ID is required'),
-  }),
-);
+// Define your API method code
+export default hyperApi.module()
+  .use(valibot(
+    v.object({ name: v.string() }),
+  ))
+  .action((request) => {
+    const { id } = request.args;
+
+    // Mocking user lookup
+    return {
+      id,
+      name: 'John Doe',
+      email: 'john@example.com',
+    };
+  });
 ```
 
 ## Request/Response Format
@@ -137,55 +143,29 @@ The IPC driver returns a tuple to indicate success/failure and provide data:
 ```typescript
 // Success response
 [true, Record<string, unknown> | unknown[] | undefined]
-
 // Error response
 [false, { code: number, description: string, data?: Record<string, unknown> }]
 ```
 
 ## Error Handling
 
-The driver automatically translates HyperAPI errors into appropriate responses:
+This driver automatically translates HyperAPI errors into appropriate responses. For example:
 
 ```typescript
-import { HyperAPIBusyError } from '@hyperapi/core';
+// import you HyperAPI instance
+import { hyperApi } from '../main.ts';
 
-export default function(request: HyperAPIRequest): HyperAPIResponse {
+export default hyperApi.module().action((request) => {
   // Check some condition
   if (isLocked()) {
     throw new HyperAPIBusyError();
-    // Client will receive [ false, { "code": 10, "description": "Endpoint is busy" }]
+    // client will receive [ false, { "code": 10, "description": "Endpoint is busy" }]
   }
 
   // Normal processing
   return { message: "Success" };
-  // Client will receive [ true, { "message": "Success" }]
-}
-```
-
-## TypeScript Support
-
-The IPC driver provides full TypeScript support:
-
-```typescript
-import type { HyperAPIRequest, HyperAPIResponse } from '@hyperapi/core';
-import * as v from 'valibot';
-
-// Define validator for request arguments
-export const argsValidator = v.parser(
-  v.strictObject({
-    id: v.string('User ID is required'),
-  }),
-);
-
-export default function(
-  // use validator as type for request arguments
-  request: HyperAPIRequest<ReturnType<typeof argsValidator>>,
-): HyperAPIResponse {
-  // request.args.id are properly typed
-  return {
-    user: getUserById(request.args.id, request.args.includePrivate)
-  };
-}
+  // client will receive [ true, { "message": "Success" }]
+});
 ```
 
 ## Contributing
