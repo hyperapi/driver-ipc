@@ -14,10 +14,10 @@ const child_process = fork(
 );
 
 const driver = new HyperAPIIpcDriver(child_process);
-const _hyperApi = new HyperAPI({
-	root: new URL('../test/parent/hyper-api', import.meta.url).pathname,
+export const hyperApi = new HyperAPI(
 	driver,
-});
+	new URL('../test/parent/hyper-api', import.meta.url).pathname,
+);
 
 test('child reply', async () => {
 	const result = await sendIpcRequest(child_process, 'echo', {

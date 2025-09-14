@@ -1,19 +1,20 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
-import type { HyperAPIRequest, HyperAPIResponse } from '@hyperapi/core';
+import * as v from 'valibot';
 import { sendIpcRequest } from '../../../src/main.js';
+import { valibot } from '../../valibot.js';
+import { hyperApi } from '../main.js';
 
-export default async function (
-	request: HyperAPIRequest<{ name: string }>,
-): Promise<HyperAPIResponse> {
-	const [is_success, data] = await sendIpcRequest(
-		process,
-		'echo',
-		request.args,
-	);
+export default hyperApi
+	.module()
+	.use(valibot(v.object({ name: v.string() })))
+	.action(async (request) => {
+		const [is_success, data] = await sendIpcRequest(
+			process,
+			'echo',
+			request.args,
+		);
 
-	return {
-		is_success,
-		data,
-	};
-}
+		return {
+			is_success,
+			data,
+		};
+	});

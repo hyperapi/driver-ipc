@@ -1,20 +1,10 @@
 import { ChildProcess } from "node:child_process";
-import { HyperAPIDriver, HyperAPIDriverHandler, HyperAPIRequest } from "@hyperapi/core";
+import { HyperAPIDriver, HyperAPIRequest } from "@hyperapi/core/dev";
 
 //#region src/main.d.ts
-declare class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
+declare class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
   readonly process: NodeJS.Process | ChildProcess;
-  private hyperapi_handler?;
   constructor(process?: NodeJS.Process | ChildProcess);
-  /**
-  * Starts the server.
-  * @param hyperapi_handler - The handler to use.
-  */
-  start(hyperapi_handler: HyperAPIDriverHandler<HyperAPIRequest<any>>): void;
-  /**
-  * Stops the server.
-  */
-  stop(): void;
   /**
   * Handles the request.
   * @param path - API method path.
@@ -22,6 +12,10 @@ declare class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> 
   * @returns -
   */
   private processRequest;
+  /**
+  * Stops the server.
+  */
+  destroy(): void;
 }
 /**
 * Sends a request to the process.

@@ -1,21 +1,11 @@
 import type { ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { HyperAPIError, HyperAPIInternalError } from '@hyperapi/core';
 import {
-	type HyperAPIDriver,
-	type HyperAPIDriverHandler,
-	HyperAPIError,
-	HyperAPIInternalError,
+	HyperAPIDriver,
 	type HyperAPIRequest,
-} from '@hyperapi/core';
-
-/**
- * Checks if the value is a record.
- * @param value - The value to check.
- * @returns -
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+	isRecord,
+} from '@hyperapi/core/dev';
 
 /**
  * Creates random ID.
@@ -25,24 +15,14 @@ function createId() {
 	return randomBytes(16).toString('base64').replaceAll('=', '');
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
+export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 	readonly process: NodeJS.Process | ChildProcess;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private hyperapi_handler?: HyperAPIDriverHandler<HyperAPIRequest<any>> =
-		undefined;
 
 	constructor(process: NodeJS.Process | ChildProcess = globalThis.process) {
-		this.process = process;
-	}
+		super();
 
-	/**
-	 * Starts the server.
-	 * @param hyperapi_handler - The handler to use.
-	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	start(hyperapi_handler: HyperAPIDriverHandler<HyperAPIRequest<any>>): void {
-		this.hyperapi_handler = hyperapi_handler;
+		this.process = process;
+
 		this.process.on('message', async (message) => {
 			if (!isRecord(message)) {
 				return;
@@ -101,15 +81,6 @@ export class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
 	}
 
 	/**
-	 * Stops the server.
-	 */
-	// eslint-disable-next-line class-methods-use-this
-	stop(): void {
-		// TODO: Implement removing listeners we added.
-		// this.process.removeAllListeners('message');
-	}
-
-	/**
 	 * Handles the request.
 	 * @param path - API method path.
 	 * @param args - API method arguments.
@@ -119,25 +90,31 @@ export class HyperAPIIpcDriver implements HyperAPIDriver<HyperAPIRequest<any>> {
 		path: string,
 		args?: Record<string, unknown>,
 	): Promise<unknown> {
-		if (!this.hyperapi_handler) {
-			throw new Error('No handler available.');
-		}
-
-		const hyperapi_response = await this.hyperapi_handler({
+		const response = await this.emitRequest({
 			method: 'UNKNOWN',
 			path,
-			args,
+			args: args ?? {},
 		});
 
-		if (hyperapi_response instanceof HyperAPIError) {
-			throw hyperapi_response;
+		if (response instanceof HyperAPIError) {
+			throw response;
 		}
 
-		if (hyperapi_response instanceof Response) {
+		if (response instanceof Response) {
 			throw new TypeError('Response is not supported in this driver');
 		}
 
-		return hyperapi_response;
+		return response;
+	}
+
+	/**
+	 * Stops the server.
+	 */
+	override destroy(): void {
+		// TODO: Implement removing listeners we added.
+		// this.process.removeAllListeners('message');
+
+		super.destroy();
 	}
 }
 

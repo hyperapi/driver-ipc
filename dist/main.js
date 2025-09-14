@@ -1,15 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { HyperAPIError, HyperAPIInternalError } from "@hyperapi/core";
+import { HyperAPIDriver, isRecord } from "@hyperapi/core/dev";
 
 //#region src/main.ts
-/**
-* Checks if the value is a record.
-* @param value - The value to check.
-* @returns -
-*/
-function isRecord(value) {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 /**
 * Creates random ID.
 * @returns -
@@ -17,18 +10,11 @@ function isRecord(value) {
 function createId() {
 	return randomBytes(16).toString("base64").replaceAll("=", "");
 }
-var HyperAPIIpcDriver = class {
+var HyperAPIIpcDriver = class extends HyperAPIDriver {
 	process;
-	hyperapi_handler = void 0;
 	constructor(process = globalThis.process) {
+		super();
 		this.process = process;
-	}
-	/**
-	* Starts the server.
-	* @param hyperapi_handler - The handler to use.
-	*/
-	start(hyperapi_handler) {
-		this.hyperapi_handler = hyperapi_handler;
 		this.process.on("message", async (message) => {
 			if (!isRecord(message)) return;
 			const request = message["@hyperapi-request"];
@@ -58,25 +44,26 @@ var HyperAPIIpcDriver = class {
 		});
 	}
 	/**
-	* Stops the server.
-	*/
-	stop() {}
-	/**
 	* Handles the request.
 	* @param path - API method path.
 	* @param args - API method arguments.
 	* @returns -
 	*/
 	async processRequest(path, args) {
-		if (!this.hyperapi_handler) throw new Error("No handler available.");
-		const hyperapi_response = await this.hyperapi_handler({
+		const response = await this.emitRequest({
 			method: "UNKNOWN",
 			path,
-			args
+			args: args ?? {}
 		});
-		if (hyperapi_response instanceof HyperAPIError) throw hyperapi_response;
-		if (hyperapi_response instanceof Response) throw new TypeError("Response is not supported in this driver");
-		return hyperapi_response;
+		if (response instanceof HyperAPIError) throw response;
+		if (response instanceof Response) throw new TypeError("Response is not supported in this driver");
+		return response;
+	}
+	/**
+	* Stops the server.
+	*/
+	destroy() {
+		super.destroy();
 	}
 };
 /**
