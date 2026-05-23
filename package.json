@@ -1,6 +1,6 @@
 {
 	"name": "@hyperapi/driver-ipc",
-	"version": "0.3.0-dev",
+	"version": "0.6.0-dev",
 	"description": "HyperAPI driver for inter-process communication.",
 	"publishConfig": {
 		"access": "public"
@@ -21,20 +21,20 @@
 		"node": ">=21"
 	},
 	"peerDependencies": {
-		"@hyperapi/core": "github:hyperapi/core#1aa5ffd2e603040e99f80f84b028a386ead5cca5"
+		"@hyperapi/core": "github:hyperapi/core#d3ebe406e7b366e37e307a713de5a7898fe5858d"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.3.1",
-		"@kirick/lint": "0.2.12",
-		"@types/bun": "1.2.23",
-		"eslint": "9.38.0",
-		"oxlint": "1.24.0",
-		"publint": "0.3.15",
-		"tsdown": "0.15.11",
-		"typescript": "5.9.3",
+		"@biomejs/biome": "2.4.10",
+		"@kirick/lint": "0.3.1",
+		"@types/bun": "1.3.11",
+		"eslint": "10.2.0",
+		"oxlint": "1.58.0",
+		"publint": "0.3.21",
+		"tsdown": "0.15.12",
+		"typescript": "6.0.2",
 		"unplugin-unused": "0.5.4",
-		"valibot": "1.1.0",
-		"vitest": "4.0.4"
+		"valibot": "1.4.0",
+		"vitest": "4.1.7"
 	},
 	"scripts": {
 		"build": "tsdown src/main.ts --clean --tsconfig tsconfig.main.json --publint --unused --dts --format esm --format cjs",

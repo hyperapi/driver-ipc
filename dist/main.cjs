@@ -77,7 +77,7 @@ var HyperAPIIpcDriver = class extends __hyperapi_core_dev.HyperAPIDriver {
 	*/
 	async processRequest(path, args) {
 		const response = await this.emitRequest({
-			method: "UNKNOWN",
+			method: "UNDEF",
 			path,
 			args: args ?? {}
 		});

@@ -91,7 +91,7 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 		args?: Record<string, unknown>,
 	): Promise<unknown> {
 		const response = await this.emitRequest({
-			method: 'UNKNOWN',
+			method: 'UNDEF',
 			path,
 			args: args ?? {},
 		});
