@@ -1,9 +1,8 @@
-Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-let node_crypto = require("node:crypto");
-let _hyperapi_core = require("@hyperapi/core");
-let _hyperapi_core_dev = require("@hyperapi/core/dev");
+import { randomUUID } from "node:crypto";
+import { HyperAPIError, HyperAPIInternalError } from "@hyperapi/core";
+import { HyperAPIDriver, isRecord } from "@hyperapi/core/dev";
 //#region src/main.ts
-var HyperAPIIpcDriver = class extends _hyperapi_core_dev.HyperAPIDriver {
+var HyperAPIIpcDriver = class extends HyperAPIDriver {
 	process;
 	constructor(process = globalThis.process) {
 		super();
@@ -12,13 +11,13 @@ var HyperAPIIpcDriver = class extends _hyperapi_core_dev.HyperAPIDriver {
 	}
 	#handler = (message) => this.#onMessage(message);
 	async #onMessage(message) {
-		if (!(0, _hyperapi_core_dev.isRecord)(message)) return;
+		if (!isRecord(message)) return;
 		const request = message["@hyperapi-request"];
 		if (request === void 0) return;
 		if (!Array.isArray(request)) throw new TypeError("Invalid request.");
 		if (typeof request[0] !== "string") throw new TypeError("Invalid request[0].");
 		if (typeof request[1] !== "string") throw new TypeError("Invalid request[1].");
-		if (!(request[2] === void 0 || (0, _hyperapi_core_dev.isRecord)(request[2]))) throw new TypeError("Invalid request[2].");
+		if (!(request[2] === void 0 || isRecord(request[2]))) throw new TypeError("Invalid request[2].");
 		const [request_id, path, args] = request;
 		const response = [
 			request_id,
@@ -29,11 +28,11 @@ var HyperAPIIpcDriver = class extends _hyperapi_core_dev.HyperAPIDriver {
 			response[2] = await this.processRequest(path, args);
 		} catch (error) {
 			response[1] = false;
-			if (error instanceof _hyperapi_core.HyperAPIError) response[2] = error.getResponse();
+			if (error instanceof HyperAPIError) response[2] = error.getResponse();
 			else {
 				console.error("Unhandled error in @hyperapi/driver-tasq:");
 				console.error(error);
-				response[2] = new _hyperapi_core.HyperAPIInternalError().getResponse();
+				response[2] = new HyperAPIInternalError().getResponse();
 			}
 		}
 		this.process.send({ "@hyperapi-response": response });
@@ -45,7 +44,7 @@ var HyperAPIIpcDriver = class extends _hyperapi_core_dev.HyperAPIDriver {
 			path,
 			args: args ?? {}
 		});
-		if (response instanceof _hyperapi_core.HyperAPIError) throw response;
+		if (response instanceof HyperAPIError) throw response;
 		if (response instanceof Response) throw new TypeError("Response is not supported in this driver");
 		return response;
 	}
@@ -63,10 +62,10 @@ var HyperAPIIpcDriver = class extends _hyperapi_core_dev.HyperAPIDriver {
 * @returns -
 */
 function sendIpcRequest(process, path, args) {
-	const id = (0, node_crypto.randomUUID)();
+	const id = randomUUID();
 	const promise = new Promise((resolve) => {
 		function handler(message) {
-			if (!(0, _hyperapi_core_dev.isRecord)(message)) return;
+			if (!isRecord(message)) return;
 			const response = message["@hyperapi-response"];
 			if (response === void 0) return;
 			if (!Array.isArray(response) || response.length !== 3) throw new TypeError("Invalid response.");
@@ -86,5 +85,4 @@ function sendIpcRequest(process, path, args) {
 	return promise;
 }
 //#endregion
-exports.HyperAPIIpcDriver = HyperAPIIpcDriver;
-exports.sendIpcRequest = sendIpcRequest;
+export { HyperAPIIpcDriver, sendIpcRequest };

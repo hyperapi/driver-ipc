@@ -3,19 +3,13 @@ import { ChildProcess } from "node:child_process";
 
 //#region src/main.d.ts
 declare class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
+  #private;
   readonly process: NodeJS.Process | ChildProcess;
   constructor(process?: NodeJS.Process | ChildProcess);
-  /**
-  * Handles the request.
-  * @param path - API method path.
-  * @param args - API method arguments.
-  * @returns -
-  */
+  /** Handles the request. */
   private processRequest;
-  /**
-  * Stops the server.
-  */
-  destroy(): void;
+  /** Stops the server. */
+  override destroy(): void;
 }
 /**
 * Sends a request to the process.

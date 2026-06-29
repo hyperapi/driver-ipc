@@ -1,19 +1,11 @@
 import type { ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { HyperAPIError, HyperAPIInternalError } from '@hyperapi/core';
 import {
 	HyperAPIDriver,
 	type HyperAPIRequest,
 	isRecord,
 } from '@hyperapi/core/dev';
-
-/**
- * Creates random ID.
- * @returns -
- */
-function createId() {
-	return randomBytes(16).toString('base64').replaceAll('=', '');
-}
 
 export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 	readonly process: NodeJS.Process | ChildProcess;
@@ -23,74 +15,69 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 
 		this.process = process;
 
-		this.process.on('message', async (message) => {
-			if (!isRecord(message)) {
-				return;
+		this.process.on('message', this.#handler);
+	}
+
+	#handler = (message: unknown) => this.#onMessage(message);
+
+	async #onMessage(message: unknown) {
+		if (!isRecord(message)) {
+			return;
+		}
+
+		const request = message['@hyperapi-request'];
+		if (request === undefined) {
+			return;
+		}
+
+		if (!Array.isArray(request)) {
+			throw new TypeError('Invalid request.');
+		}
+
+		if (typeof request[0] !== 'string') {
+			throw new TypeError('Invalid request[0].');
+		}
+
+		if (typeof request[1] !== 'string') {
+			throw new TypeError('Invalid request[1].');
+		}
+
+		if (!(request[2] === undefined || isRecord(request[2]))) {
+			throw new TypeError('Invalid request[2].');
+		}
+
+		const [request_id, path, args] = request;
+
+		const response: [string, boolean, unknown] = [request_id, true, undefined];
+
+		try {
+			response[2] = await this.processRequest(path, args);
+		} catch (error) {
+			response[1] = false;
+
+			if (error instanceof HyperAPIError) {
+				response[2] = error.getResponse();
+			} else {
+				// oxlint-disable-next-line no-console
+				console.error('Unhandled error in @hyperapi/driver-tasq:');
+				// oxlint-disable-next-line no-console
+				console.error(error);
+
+				response[2] = new HyperAPIInternalError().getResponse();
 			}
+		}
 
-			const request = message['@hyperapi-request'];
-			if (request === undefined) {
-				return;
-			}
-
-			if (!Array.isArray(request)) {
-				throw new TypeError('Invalid request.');
-			}
-
-			if (typeof request[0] !== 'string') {
-				throw new TypeError('Invalid request[0].');
-			}
-
-			if (typeof request[1] !== 'string') {
-				throw new TypeError('Invalid request[1].');
-			}
-
-			if (!(request[2] === undefined || isRecord(request[2]))) {
-				throw new TypeError('Invalid request[2].');
-			}
-
-			const [request_id, path, args] = request;
-
-			const response: [string, boolean, unknown] = [
-				request_id,
-				true,
-				undefined,
-			];
-
-			try {
-				response[2] = await this.processRequest(path, args);
-			} catch (error) {
-				response[1] = false;
-
-				if (error instanceof HyperAPIError) {
-					response[2] = error.getResponse();
-				} else {
-					// oxlint-disable-next-line no-console
-					console.error('Unhandled error in @hyperapi/driver-tasq:');
-					// oxlint-disable-next-line no-console
-					console.error(error);
-
-					response[2] = new HyperAPIInternalError().getResponse();
-				}
-			}
-
-			this.process.send!({
-				'@hyperapi-response': response,
-			});
+		this.process.send!({
+			'@hyperapi-response': response,
 		});
 	}
 
-	/**
-	 * Handles the request.
-	 * @param path - API method path.
-	 * @param args - API method arguments.
-	 * @returns -
-	 */
+	/** Handles the request. */
 	private async processRequest(
 		path: string,
 		args?: Record<string, unknown>,
 	): Promise<unknown> {
-		const response = await this.emitRequest({
+		const response = await this.fetch({
 			method: 'UNDEF',
 			path,
 			args: args ?? {},
@@ -107,13 +94,9 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 		return response;
 	}
 
-	/**
-	 * Stops the server.
-	 */
+	/** Stops the server. */
 	override destroy(): void {
-		// TODO: Implement removing listeners we added.
-		// this.process.removeAllListeners('message');
-
+		this.process.off('message', this.#handler);
 		super.destroy();
 	}
 }
@@ -130,10 +113,11 @@ export function sendIpcRequest(
 	path: string,
 	args?: Record<string, unknown>,
 ): Promise<[boolean, unknown]> {
-	const id = createId();
+	const id = randomUUID();
 
 	const promise = new Promise<[boolean, unknown]>((resolve) => {
-		process.on('message', (message) => {
+		// eslint-disable-next-line jsdoc/require-jsdoc
+		function handler(message: unknown) {
 			if (!isRecord(message)) {
 				return;
 			}
@@ -160,7 +144,10 @@ export function sendIpcRequest(
 			}
 
 			resolve([response[1], response[2]]);
-		});
+			process.off('message', handler);
+		}
+
+		process.on('message', handler);
 	});
 
 	process.send!({

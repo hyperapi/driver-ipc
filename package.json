@@ -1,19 +1,18 @@
 {
 	"name": "@hyperapi/driver-ipc",
-	"version": "0.6.0-dev",
+	"version": "0.7.0-dev",
 	"description": "HyperAPI driver for inter-process communication.",
 	"publishConfig": {
 		"access": "public"
 	},
 	"type": "module",
-	"main": "dist/main.js",
 	"exports": {
 		".": {
 			"types": {
-				"import": "./dist/main.d.ts",
+				"import": "./dist/main.d.mts",
 				"require": "./dist/main.d.cts"
 			},
-			"import": "./dist/main.js",
+			"import": "./dist/main.mjs",
 			"require": "./dist/main.cjs"
 		}
 	},
@@ -21,20 +20,23 @@
 		"node": ">=21"
 	},
 	"peerDependencies": {
-		"@hyperapi/core": "github:hyperapi/core#d3ebe406e7b366e37e307a713de5a7898fe5858d"
+		"@hyperapi/core": "github:hyperapi/core#7df8a93e13aef72083aa5f92f563b1b89477a3a6"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.10",
-		"@kirick/lint": "0.3.1",
+		"@kirick/lint": "0.3.3",
 		"@types/bun": "1.3.11",
 		"eslint": "10.2.0",
 		"oxlint": "1.58.0",
 		"publint": "0.3.21",
-		"tsdown": "0.15.12",
+		"tsdown": "0.22.3",
 		"typescript": "6.0.2",
-		"unplugin-unused": "0.5.4",
-		"valibot": "1.4.0",
-		"vitest": "4.1.7"
+		"unplugin-unused": "0.5.7",
+		"valibot": "1.4.2",
+		"vitest": "4.1.9"
+	},
+	"_devpack": {
+		"@hyperapi/core": "../core"
 	},
 	"scripts": {
 		"build": "tsdown src/main.ts --clean --tsconfig tsconfig.main.json --publint --unused --dts --format esm --format cjs",
