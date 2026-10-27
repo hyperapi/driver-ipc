@@ -132,9 +132,14 @@ When using `sendIpcRequest`:
 const [success, result] = await sendIpcRequest(
   process,           // Node.js process or ChildProcess
   'method/path',     // API method (maps to file path)
-  { key: 'value' }   // arguments (optional)
+  { key: 'value' },  // arguments (optional)
+  { timeout: 30000 } // how long to wait for a response, ms (optional)
 );
 ```
+
+The returned promise **rejects** if the peer never answers within `timeout`, if
+the IPC channel is closed, or if the response cannot be parsed. Only a response
+that actually arrives resolves to the `[success, result]` tuple below.
 
 ### Response Format
 

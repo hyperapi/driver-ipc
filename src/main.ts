@@ -1,6 +1,10 @@
 import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { HyperAPIError, HyperAPIInternalError } from '@hyperapi/core';
+import {
+	HyperAPIError,
+	HyperAPIInternalError,
+	HyperAPIInvalidParametersError,
+} from '@hyperapi/core';
 import {
 	HyperAPIDriver,
 	type HyperAPIRequest,
@@ -18,7 +22,19 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 		this.process.on('message', this.#handler);
 	}
 
-	#handler = (message: unknown) => this.#onMessage(message);
+	// A peer can send anything, and the emitter drops the promise this returns:
+	// uncaught, one bad message is an unhandled rejection that takes the whole
+	// process down.
+	#handler = async (message: unknown) => {
+		try {
+			await this.#onMessage(message);
+		} catch (error) {
+			// oxlint-disable-next-line no-console
+			console.error('Unhandled error in @hyperapi/driver-ipc:');
+			// oxlint-disable-next-line no-console
+			console.error(error);
+		}
+	};
 
 	async #onMessage(message: unknown) {
 		if (!isRecord(message)) {
@@ -34,36 +50,35 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 			throw new TypeError('Invalid request.');
 		}
 
-		if (typeof request[0] !== 'string') {
+		const [request_id, path, args] = request as unknown[];
+
+		// Without a usable id there is nobody to answer, so the only thing left
+		// is to report it.
+		if (typeof request_id !== 'string') {
 			throw new TypeError('Invalid request[0].');
 		}
 
-		if (typeof request[1] !== 'string') {
-			throw new TypeError('Invalid request[1].');
-		}
-
-		if (!(request[2] === undefined || isRecord(request[2]))) {
-			throw new TypeError('Invalid request[2].');
-		}
-
-		const [request_id, path, args] = request;
-
 		const response: [string, boolean, unknown] = [request_id, true, undefined];
 
-		try {
-			response[2] = await this.processRequest(path, args);
-		} catch (error) {
+		if (typeof path !== 'string' || !(args === undefined || isRecord(args))) {
 			response[1] = false;
+			response[2] = new HyperAPIInvalidParametersError().getResponse();
+		} else {
+			try {
+				response[2] = await this.processRequest(path, args);
+			} catch (error) {
+				response[1] = false;
 
-			if (error instanceof HyperAPIError) {
-				response[2] = error.getResponse();
-			} else {
-				// oxlint-disable-next-line no-console
-				console.error('Unhandled error in @hyperapi/driver-tasq:');
-				// oxlint-disable-next-line no-console
-				console.error(error);
+				if (error instanceof HyperAPIError) {
+					response[2] = error.getResponse();
+				} else {
+					// oxlint-disable-next-line no-console
+					console.error('Unhandled error in @hyperapi/driver-ipc:');
+					// oxlint-disable-next-line no-console
+					console.error(error);
 
-				response[2] = new HyperAPIInternalError().getResponse();
+					response[2] = new HyperAPIInternalError().getResponse();
+				}
 			}
 		}
 
@@ -87,10 +102,6 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 			throw response;
 		}
 
-		if (response instanceof Response) {
-			throw new TypeError('Response is not supported in this driver');
-		}
-
 		return response;
 	}
 
@@ -101,21 +112,33 @@ export class HyperAPIIpcDriver extends HyperAPIDriver<HyperAPIRequest> {
 	}
 }
 
+/** How long {@link sendIpcRequest} waits for a response. */
+const DEFAULT_TIMEOUT = 30_000;
+
 /**
  * Sends a request to the process.
  * @param process - The process to send the request to.
  * @param path - The API method path.
  * @param args - The API method arguments.
+ * @param options -
+ * @param options.timeout - Milliseconds to wait for a response before rejecting. Default: 30000.
  * @returns -
  */
 export function sendIpcRequest(
 	process: NodeJS.Process | ChildProcess,
 	path: string,
 	args?: Record<string, unknown>,
+	{ timeout = DEFAULT_TIMEOUT }: { timeout?: number } = {},
 ): Promise<[boolean, unknown]> {
 	const id = randomUUID();
 
-	const promise = new Promise<[boolean, unknown]>((resolve) => {
+	return new Promise<[boolean, unknown]>((resolve, reject) => {
+		// eslint-disable-next-line jsdoc/require-jsdoc
+		function stop() {
+			clearTimeout(timer);
+			process.off('message', handler);
+		}
+
 		// eslint-disable-next-line jsdoc/require-jsdoc
 		function handler(message: unknown) {
 			if (!isRecord(message)) {
@@ -123,36 +146,46 @@ export function sendIpcRequest(
 			}
 
 			const response = message['@hyperapi-response'];
-			if (response === undefined) {
+
+			// Anything not attributable to this request is ignored rather than
+			// thrown: this runs as an event listener, where a throw is fatal.
+			if (!Array.isArray(response) || response[0] !== id) {
 				return;
 			}
 
-			if (!Array.isArray(response) || response.length !== 3) {
-				throw new TypeError('Invalid response.');
-			}
+			stop();
 
-			if (typeof response[0] !== 'string') {
-				throw new TypeError('Invalid response[0] (id).');
-			}
-
-			if (response[0] !== id) {
+			if (response.length !== 3 || typeof response[1] !== 'boolean') {
+				reject(new TypeError('Invalid response.'));
 				return;
-			}
-
-			if (typeof response[1] !== 'boolean') {
-				throw new TypeError('Invalid response[1] (is_success).');
 			}
 
 			resolve([response[1], response[2]]);
-			process.off('message', handler);
 		}
 
+		// Every exit settles the promise and detaches the listener: a request
+		// that is never answered would otherwise hang its caller forever.
+		const timer = setTimeout(() => {
+			stop();
+			reject(new Error(`IPC request "${path}" timed out after ${timeout}ms.`));
+		}, timeout);
+
 		process.on('message', handler);
-	});
 
-	process.send!({
-		'@hyperapi-request': [id, path, args],
-	});
+		if (typeof process.send !== 'function') {
+			stop();
+			reject(new Error('Process was not started with an IPC channel.'));
+			return;
+		}
 
-	return promise;
+		process.send(
+			{ '@hyperapi-request': [id, path, args] },
+			(error: Error | null) => {
+				if (error !== null) {
+					stop();
+					reject(error);
+				}
+			},
+		);
+	});
 }
