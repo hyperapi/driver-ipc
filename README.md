@@ -1,6 +1,7 @@
 # HyperAPI IPC Driver
 
 [![npm version](https://img.shields.io/npm/v/@hyperapi/driver-ipc.svg)](https://www.npmjs.com/package/@hyperapi/driver-ipc)
+[![Open on npmx.dev](https://npmx.dev/api/registry/badge/version/@hyperapi/driver-ipc?style=shieldsio&label=npmx.dev)](https://npmx.dev/package/@hyperapi/driver-ipc)
 [![license](https://img.shields.io/npm/l/@hyperapi/driver-ipc.svg?color=blue)](https://github.com/hyperapi/driver-ipc/blob/main/LICENSE)
 
 A HyperAPI driver that enables inter-process communication (IPC) between Node.js or Bun processes with API.
