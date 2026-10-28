@@ -23,7 +23,7 @@
 		"node": ">=21"
 	},
 	"peerDependencies": {
-		"@hyperapi/core": "github:hyperapi/core#7e59428a9a8954d81467ec4f2eaf7ce32a52daea"
+		"@hyperapi/core": "github:hyperapi/core#daac5df164cba7ce5f2638afef5dc13659d4f1c0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.4",
