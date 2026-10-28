@@ -4,7 +4,7 @@
 [![Open on npmx.dev](https://npmx.dev/api/registry/badge/version/@hyperapi/driver-ipc?style=shieldsio&label=npmx.dev)](https://npmx.dev/package/@hyperapi/driver-ipc)
 [![license](https://img.shields.io/npm/l/@hyperapi/driver-ipc.svg?color=blue)](https://github.com/hyperapi/driver-ipc/blob/main/LICENSE)
 
-A HyperAPI driver that enables inter-process communication (IPC) between Node.js or Bun processes with API.
+A HyperAPI driver that exposes your API over inter-process communication (IPC) between Node.js or Bun processes.
 
 ## Features
 
@@ -44,7 +44,7 @@ const driver = new HyperAPIIpcDriver(process);
 export const hyperApi = new HyperAPI(
   driver,
   // Optional: custom path to API methods
-  // path.join(import.meta.dir, 'my-api')
+  // new URL('my-api', import.meta.url).pathname
 );
 
 console.log('Child service is ready to handle IPC requests');
@@ -61,7 +61,7 @@ import { HyperAPIIpcDriver, sendIpcRequest } from '@hyperapi/driver-ipc';
 // Fork a child process
 const childProcess = fork('./child-service.js');
 
-// Optional: Set up HyperAPI in parent too to allow children send requests to the parent process
+// Optional: set HyperAPI up in the parent too, so children can send requests back to it
 const driver = new HyperAPIIpcDriver(childProcess);
 export const hyperApi = new HyperAPI(driver, './parent-api');
 
@@ -79,10 +79,12 @@ if (success) {
 }
 ```
 
-> [!NOTE]
-> Unlike HTTP drivers, IPC does not have verbs like `GET`, `POST`, etc. The driver uses the special `UNKNOWN` pseudo-method reserved for non-HTTP API servers by HyperAPI core.
+> [!IMPORTANT]
+> Unlike HTTP, IPC has no verbs such as `GET` or `POST`. HyperAPI core still needs one, so this driver sends every request as `UNDEF`, the pseudo-method core reserves for transports without verbs.
 >
-> This means that you **can not** specify HTTP methods in your file names like `user.get.ts` — it will not be accessible for IPC requests.
+> That makes the `+verb` suffix unreachable here. `users+get.ts` registers a `GET` route, so a request for `users` comes back as `[false, { code: 14, description: 'HTTP method not allowed' }]`. Name the file `users.ts` instead.
+>
+> A dot is not special, though: `users.get.ts` simply defines a method called `users.get`.
 
 ### Creating API Endpoints
 
@@ -91,17 +93,19 @@ Create your API handlers in the default `hyper-api` directory:
 **hyper-api/users/[id].ts**
 
 ```typescript
-import { HyperAPIInvalidParametersError } from '@hyper-api/core';
+import { HyperAPIInvalidParametersError } from '@hyperapi/core';
+import type { HyperAPIRequest } from '@hyperapi/core/dev';
 import * as v from 'valibot';
 import { hyperApi } from '../main.js';
 
-// Define your validation library
-export function valibot<S extends v.BaseSchema<any, any, any>>(schema: S) {
+// Define your validation middleware
+function valibot<S extends Parameters<typeof v.parser>[0]>(schema: S) {
   return (request: HyperAPIRequest) => {
     const result = v.safeParse(schema, request.args);
     if (result.success) {
-      return { args: result.data };
+      return { args: result.output };
     }
+
     throw new HyperAPIInvalidParametersError();
   };
 }
@@ -109,7 +113,8 @@ export function valibot<S extends v.BaseSchema<any, any, any>>(schema: S) {
 // Define your API method code
 export default hyperApi.module()
   .use(valibot(
-    v.object({ name: v.string() }),
+    // `[id]` in the file name arrives as `args.id`
+    v.object({ id: v.string() }),
   ))
   .action((request) => {
     const { id } = request.args;
@@ -158,8 +163,9 @@ The IPC driver returns a tuple to indicate success/failure and provide data:
 This driver automatically translates HyperAPI errors into appropriate responses. For example:
 
 ```typescript
-// import you HyperAPI instance
-import { hyperApi } from '../main.ts';
+import { HyperAPIBusyError } from '@hyperapi/core';
+// import your HyperAPI instance
+import { hyperApi } from '../main.js';
 
 export default hyperApi.module().action((request) => {
   // Check some condition
